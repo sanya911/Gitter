@@ -35,23 +35,27 @@ class StatusCommand(Command):
         unstaged_files = []
         untracked_files = []
 
-        for file, hash_value in current_hashes.items():
-            if file in index:
-                if index[file] != hash_value:
-                    unstaged_files.append(file)
-                else:
-                    untracked_files.append(file)
+        # Find all files in the working directory
+        all_files = {os.path.join(root, file) for root, _, files in os.walk(os.getcwd()) for file in files}
 
+        for file in all_files:
+            if file in index:
+                # If file is tracked but modified, mark as unstaged
+                if index[file] != current_hashes.get(file, None):
+                    unstaged_files.append(file)
+            else:
+                # File is untracked
+                untracked_files.append(file)
+
+        # Check if any staged files were deleted
         for file in index:
-            if file in current_hashes and index[file] == current_hashes[file]:
+            if file in current_hashes:
                 staged_files.append(file)
-            elif file not in current_hashes:
+            else:
                 print(f"Warning: {file} was staged but is now missing.")
 
-        untracked_files = [file for file in untracked_files if file not in staged_files]
-
         if staged_files:
-            print("Changes to be commited:")
+            print("Changes to be committed:")
             for file in staged_files:
                 print(f"    modified: {file}")
 
@@ -63,7 +67,7 @@ class StatusCommand(Command):
         if untracked_files:
             print("Untracked files:")
             for file in untracked_files:
-                print(f"    modified: {file}")
+                print(f"    {file}")
 
         if not (staged_files or unstaged_files or untracked_files):
             print("No changes detected.")
