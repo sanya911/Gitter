@@ -1,7 +1,9 @@
-import os
 import json
-from .command import Command
+import os
+
 from utils import hash_file
+
+from .command import Command
 
 
 class StatusCommand(Command):
@@ -58,13 +60,20 @@ class StatusCommand(Command):
         unstaged_files = []
         untracked_files = []
 
-        all_files = {os.path.join(root, file) for root, _, files in os.walk(os.getcwd()) for file in files}
+        all_files = {
+            os.path.join(root, file)
+            for root, _, files in os.walk(os.getcwd())
+            for file in files
+        }
 
         for file in all_files:
             if ".gitter" in file:
                 continue  # Ignore internal files
             if file in index_hashes:
-                if file not in last_commit_hashes or index_hashes[file] != last_commit_hashes[file]:
+                if (
+                    file not in last_commit_hashes
+                    or index_hashes[file] != last_commit_hashes[file]
+                ):
                     staged_files.append(file)
             elif file in last_commit_hashes:
                 if last_commit_hashes[file] != current_hashes.get(file, None):

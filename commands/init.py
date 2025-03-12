@@ -1,9 +1,9 @@
-from .command import Command
 import os
+
+from .command import Command
 
 
 class InitCommand(Command):
-
     def execute(self):
         if os.path.exists(".gitter"):
             print("Gitter repository already initialized.")

@@ -1,10 +1,12 @@
-import os
-import json
 import hashlib
-import time
-from .command import Command
+import json
+import os
 import sys
-from utils import write_committed_file, read_file_content
+import time
+
+from utils import read_file_content, write_committed_file
+
+from .command import Command
 
 
 class CommitCommand(Command):
@@ -51,7 +53,7 @@ class CommitCommand(Command):
             "hash": commit_hash,
             "message": self.message,
             "timestamp": time.strftime("%Y-%m-%d %H:%M:%S"),
-            "files": index
+            "files": index,
         }
         commits.append(commit_data)
 

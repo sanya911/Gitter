@@ -1,8 +1,10 @@
-import os
-import json
 import difflib
+import json
+import os
+
+from utils import read_committed_file, read_file_content
+
 from .command import Command
-from utils import read_file_content, read_committed_file
 
 
 class DiffCommand(Command):
@@ -32,10 +34,13 @@ class DiffCommand(Command):
 
     def show_diff(self, file_path, old_content, new_content):
         """Displays the diff output in a unified format"""
-        diff = difflib.unified_diff(old_content, new_content,
-                                    fromfile=f"a/{file_path}",
-                                    tofile=f"b/{file_path}",
-                                    lineterm="")
+        diff = difflib.unified_diff(
+            old_content,
+            new_content,
+            fromfile=f"a/{file_path}",
+            tofile=f"b/{file_path}",
+            lineterm="",
+        )
         print("\n".join(diff))
 
     def execute(self):
@@ -46,12 +51,18 @@ class DiffCommand(Command):
         index = self.load_index()
         committed_hashes = self.load_commit_hashes()
         modified_files = []
-        all_files = {os.path.join(root, file) for root, _, files in os.walk(os.getcwd()) for file in files}
+        all_files = {
+            os.path.join(root, file)
+            for root, _, files in os.walk(os.getcwd())
+            for file in files
+        }
 
         for file_path in all_files:
             if file_path in committed_hashes:
                 old_content = read_committed_file(file_path)  # Read committed version
-                new_content = read_file_content(file_path)    # Read current working version
+                new_content = read_file_content(
+                    file_path
+                )  # Read current working version
                 if old_content != new_content:
                     modified_files.append(file_path)
                     self.show_diff(file_path, old_content, new_content)

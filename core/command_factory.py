@@ -1,4 +1,11 @@
-from commands import InitCommand, AddCommand, StatusCommand, CommitCommand, DiffCommand, LogCommand
+from commands import (
+    AddCommand,
+    CommitCommand,
+    DiffCommand,
+    InitCommand,
+    LogCommand,
+    StatusCommand,
+)
 
 
 class CommandFactory:

@@ -1,11 +1,12 @@
-from .command import Command
-import os
 import json
+import os
+
 from utils import get_files, hash_file
+
+from .command import Command
 
 
 class AddCommand(Command):
-
     def execute(self):
         if not os.path.exists(".gitter"):
             print("Gitter repository not initialized.\n Run 'gitter init.")
@@ -21,7 +22,9 @@ class AddCommand(Command):
         valid_files, missing_files = get_files(self.args)
 
         if not valid_files:
-            print(f"Error: No valid files found to add. Named as {', '.join(self.args)}")
+            print(
+                f"Error: No valid files found to add. Named as {', '.join(self.args)}"
+            )
             return
 
         for file in valid_files:
@@ -33,8 +36,8 @@ class AddCommand(Command):
             json.dump(index, f)
 
         if missing_files:
-            print(f"Warning: The following files could not be added as they were not found: {', '.join(missing_files)}")
+            print(
+                f"Warning: The following files could not be added as they were not found: {', '.join(missing_files)}"
+            )
 
         print("Files successfully added to index.")
-
-
