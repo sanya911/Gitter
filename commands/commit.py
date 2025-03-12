@@ -11,6 +11,7 @@ class CommitCommand(Command):
         super().__init__(args)
         self.message = self._parse_commit_message()
         self.auto_add = "-a" in args
+        self.index = {}
 
     def _parse_commit_message(self):
         """Extracts the commit message from args."""
@@ -30,12 +31,12 @@ class CommitCommand(Command):
             return
 
         with open(".gitter/index.json", "r") as f:
-            index = json.load(f)
+            self.index = json.load(f)
 
         if self.auto_add:
-            self._add_unstaged_files(index)
+            self._add_unstaged_files()
 
-        if not index:
+        if not self.index:
             print("Error: No changes to commit.")
             return
 
@@ -44,7 +45,7 @@ class CommitCommand(Command):
             "hash": commit_hash,
             "message": self.message,
             "timestamp": time.strftime("%Y-%m-%d %H:%M:%S"),
-            "files": index
+            "files": self.index
         }
 
         with open(".gitter/commits.json", "r") as f:
@@ -64,11 +65,11 @@ class CommitCommand(Command):
         commit_string = self.message + time.strftime("%Y-%m-%d %H:%M:%S")
         return hashlib.sha1(commit_string.encode()).hexdigest()
 
-    def _add_unstaged_files(self, index):
+    def _add_unstaged_files(self):
         """Automatically stages all modified files if `-a` is used."""
         for root, _, files in os.walk(os.getcwd()):
             for file in files:
                 file_path = os.path.join(root, file)
                 file_hash = hash_file(file_path)
                 if file_hash:
-                    index[file_path] = file_hash
+                    self.index[file_path] = file_hash
