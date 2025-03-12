@@ -23,8 +23,12 @@ class StatusCommand(Command):
             print("Error: Gitter repository not initialized. Run 'gitter init'.")
             return
 
-        with open(".gitter/index.json", "r") as f:
-            index = json.load(f)
+        try:
+            with open(".gitter/index.json", "r") as f:
+                index = json.load(f)
+        except (FileNotFoundError, json.JSONDecodeError):
+            print("Error: Corrupt or missing index file. Try reinitializing the repository.")
+            return
 
         current_hashes = self.get_current_file_hashes()
         staged_files = []
@@ -43,6 +47,8 @@ class StatusCommand(Command):
                 staged_files.append(file)
             elif file not in current_hashes:
                 print(f"Warning: {file} was staged but is now missing.")
+
+        untracked_files = [file for file in untracked_files if file not in staged_files]
 
         if staged_files:
             print("Changes to be commited:")
