@@ -1,4 +1,4 @@
-from commands import InitCommand, AddCommand, StatusCommand, CommitCommand
+from commands import InitCommand, AddCommand, StatusCommand, CommitCommand, DiffCommand
 
 
 class CommandFactory:
@@ -10,9 +10,8 @@ class CommandFactory:
             "status": StatusCommand,
             "commit": CommitCommand,
             # "log": log.run,
-            # "diff": diff.run,
+            "diff": DiffCommand,
             # "help": helping.run,
             # "rebase": rebase.run,
-
         }
         return commands.get(command_name, None)

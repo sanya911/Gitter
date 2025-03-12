@@ -41,3 +41,33 @@ def hash_file(path):
     except Exception as e:
         print(f"Error processing file {path}: {str(e)}")
         return None
+
+
+def read_file_content(file_path):
+    """Reads the content of a file and returns it as a list of lines. Handles both text and binary files."""
+    try:
+        with open(file_path, "rb") as f:
+            content = f.read()
+            try:
+                return content.decode("utf-8").splitlines(True)  # Try decoding as UTF-8
+            except UnicodeDecodeError:
+                return ["[BINARY FILE - CANNOT DISPLAY CONTENT]\n"]  # Mark as binary
+    except FileNotFoundError:
+        return []
+
+def read_committed_file(file_path):
+    """Reads the committed version of a file from the .gitter/objects directory."""
+    committed_path = f".gitter/objects/{file_path.replace('/', '_')}"
+    return read_file_content(committed_path)
+
+def write_committed_file(file_path, content):
+    """Stores the committed version of a file in .gitter/objects."""
+    os.makedirs(".gitter/objects", exist_ok=True)
+    committed_path = f".gitter/objects/{file_path.replace('/', '_')}"
+    with open(committed_path, "wb") as f:
+        if isinstance(content, str):
+            f.write(content.encode("utf-8"))  # Encode as UTF-8
+        elif isinstance(content, list):
+            f.writelines([line.encode("utf-8", "ignore") for line in content])  # Write line by line
+        else:
+            f.write(content)  # Handle raw binary data
