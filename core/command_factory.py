@@ -5,6 +5,7 @@ from commands import (
     InitCommand,
     LogCommand,
     StatusCommand,
+    HelpCommand,
 )
 
 
@@ -18,6 +19,6 @@ class CommandFactory:
             "commit": CommitCommand,
             "log": LogCommand,
             "diff": DiffCommand,
-            # "help": helping.run,
+            "help": HelpCommand,
         }
         return commands.get(command_name, None)
