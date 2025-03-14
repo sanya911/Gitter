@@ -4,31 +4,46 @@ import os
 import sys
 import time
 
-from utils import read_file_content, write_committed_file
-
+from utils import get_files, hash_file, read_file_content, write_committed_file
 from .command import Command
 
 
 class CommitCommand(Command):
     def __init__(self, args):
         super().__init__(args)
-        self.message = self._parse_commit_message()
+        self.args = self._split_combined_flags(self.args)  # NEW: Split combined flags like `-am`
         self.auto_stage = "-a" in self.args
+        self.message = self._parse_commit_message()
+
+    def _split_combined_flags(self, args):
+        """Splits combined flags like '-am' into ['-a', '-m']."""
+        split_args = []
+        for arg in args:
+            if arg.startswith("-") and len(arg) > 2:  # Detect combined flags
+                split_args.extend([f"-{char}" for char in arg[1:]])  # Split each flag
+            else:
+                split_args.append(arg)
+        return split_args
 
     def _parse_commit_message(self):
         """Extracts the commit message from args, supporting multiple -m messages."""
         messages = []
-        if "-m" in self.args:
-            msg_indices = [i for i, x in enumerate(self.args) if x == "-m"]
-            for index in msg_indices:
-                if index + 1 < len(self.args):
-                    messages.append(self.args[index + 1])
+        i = 0
+        while i < len(self.args):
+            if self.args[i] == "-m":
+                if i + 1 < len(self.args):
+                    messages.append(self.args[i + 1])
+                    i += 1  # Skip next since it's the message
                 else:
                     print("Error: Commit message cannot be empty.")
                     sys.exit(1)
-            return "\n".join(messages)
-        print("Error: Commit message is required.")
-        sys.exit(1)
+            i += 1
+
+        if not messages:
+            print("Error: Commit message is required.")
+            sys.exit(1)
+
+        return "\n".join(messages)
 
     def load_index(self):
         """Loads the indexed file hashes from .gitter/index.json"""
@@ -38,17 +53,19 @@ class CommitCommand(Command):
                 return json.load(f)
         return {}
 
-    def save_commit(self, index):
-        """Saves the commit metadata and stores committed file versions."""
+    def load_commits(self):
+        """Loads existing commits from .gitter/commits.json"""
         commits_file = ".gitter/commits.json"
-        os.makedirs(".gitter", exist_ok=True)
         if os.path.exists(commits_file):
             with open(commits_file, "r") as f:
-                commits = json.load(f)
-        else:
-            commits = []
+                return json.load(f)
+        return []
 
+    def save_commit(self, index):
+        """Saves the commit metadata and stores committed file versions."""
+        commits = self.load_commits()
         commit_hash = self._generate_commit_hash(index)
+
         commit_data = {
             "hash": commit_hash,
             "message": self.message,
@@ -57,7 +74,7 @@ class CommitCommand(Command):
         }
         commits.append(commit_data)
 
-        with open(commits_file, "w") as f:
+        with open(".gitter/commits.json", "w") as f:
             json.dump(commits, f, indent=4)
 
         # Store committed file contents in .gitter/objects
@@ -78,19 +95,27 @@ class CommitCommand(Command):
         return hasher.hexdigest()
 
     def execute(self):
-
         if not os.path.exists(".gitter"):
             print("Error: Gitter repository not initialized. Run 'gitter init'.")
             return
 
         index = self.load_index()
+
+        if self.auto_stage:
+            # Auto-stage all modified & deleted files before commit
+            all_files, _ = get_files(["."])
+            for file in all_files:
+                file_hash = hash_file(file)
+                if file_hash:
+                    index[file] = file_hash
+
         if not index:
             print("No changes to commit.")
             return
 
         self.save_commit(index)
 
-        # Clear the index after commit
+        # Keep staged files in index, only remove committed ones
         with open(".gitter/index.json", "w") as f:
             json.dump({}, f)
 
