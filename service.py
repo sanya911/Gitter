@@ -25,8 +25,6 @@ def main():
         )
         sys.exit(1)
 
-    print("Hi")
-
 
 if __name__ == "__main__":
     main()
