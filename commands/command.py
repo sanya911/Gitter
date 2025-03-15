@@ -11,24 +11,19 @@ class Command(ABC):
         pass
 
     def load_ignore_patterns(self):
-        """Load ignore patterns from .gitterignore file and add default patterns."""
-        ignore_file = ".gitterignore"
-        patterns = []
-
-        if os.path.exists(ignore_file):
-            with open(ignore_file, "r") as f:
-                for line in f:
-                    line = line.strip()
-                    if line and not line.startswith("#"):
-                        patterns.append(line)
-
-        # Add default patterns to ignore
+        """Load ignore patterns from .gitterignore or use defaults."""
         default_patterns = [
             "*.pyc", "*.pyo", "*.pyd",
-            ".gitter/*", "__pycache__/*",
+            "__pycache__/*", "__pycache__/**",
             "*.so", "*.o", "*.a", "*.dll",
-            ".git/**",  # Ensure all subdirectories inside .git are ignored
+            ".git/*", ".git/**", ".git",  # Ignore .git directory completely
+            ".gitter/*", ".gitter/**", ".gitter"  # Ignore .gitter directory completely
         ]
-        patterns.extend(default_patterns)
 
-        return patterns
+        ignore_file = ".gitterignore"
+        if os.path.exists(ignore_file):
+            with open(ignore_file, "r") as f:
+                custom_patterns = [line.strip() for line in f if line.strip() and not line.startswith("#")]
+            return custom_patterns + default_patterns
+
+        return default_patterns

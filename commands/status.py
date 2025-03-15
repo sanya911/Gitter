@@ -1,5 +1,6 @@
 import json
 import os
+import hashlib
 
 from utils import hash_file, should_ignore
 
@@ -12,18 +13,27 @@ class StatusCommand(Command):
         # Load ignore patterns
         self.ignore_patterns = self.load_ignore_patterns()
 
-    @staticmethod
-    def get_current_file_hashes(ignore_patterns=None):
+    def get_current_file_hashes(self):
         """Generates the latest hash values for all files in the repository."""
         file_hashes = {}
-        for root, _, files in os.walk(os.getcwd()):
+
+        # Use consistent path handling
+        for root, _, files in os.walk("."):
             for file in files:
-                file_path = os.path.join(root, file)
-                if should_ignore(file_path, ignore_patterns):
-                    continue  # Ignore files based on patterns
+                # Create path and normalize to avoid ./ prefix issues
+                file_path = os.path.normpath(os.path.join(root, file))
+
+                # Skip ignored files
+                if should_ignore(file_path, self.ignore_patterns):
+                    continue
+
                 file_hash = hash_file(file_path)
                 if file_hash:
+                    # Store without ./ prefix for consistency
+                    if file_path.startswith("./"):
+                        file_path = file_path[2:]
                     file_hashes[file_path] = file_hash
+
         return file_hashes
 
     def load_last_commit_hashes(self):
@@ -34,9 +44,17 @@ class StatusCommand(Command):
                 with open(commits_file, "r") as f:
                     commits = json.load(f)
                 if commits:
-                    return commits[-1]["files"]  # Latest commit file hashes
-            except (FileNotFoundError, json.JSONDecodeError):
-                pass
+                    commit_files = commits[-1]["files"]
+                    # Normalize paths from commit for consistency
+                    normalized_files = {}
+                    for path, hash_val in commit_files.items():
+                        norm_path = os.path.normpath(path)
+                        if norm_path.startswith("./"):
+                            norm_path = norm_path[2:]
+                        normalized_files[norm_path] = hash_val
+                    return normalized_files
+            except Exception as e:
+                print(f"Error loading commits: {e}")
         return {}
 
     def load_index_hashes(self):
@@ -45,9 +63,17 @@ class StatusCommand(Command):
         if os.path.exists(index_file):
             try:
                 with open(index_file, "r") as f:
-                    return json.load(f)
-            except (FileNotFoundError, json.JSONDecodeError):
-                pass
+                    index_files = json.load(f)
+                    # Normalize paths from index for consistency
+                    normalized_files = {}
+                    for path, hash_val in index_files.items():
+                        norm_path = os.path.normpath(path)
+                        if norm_path.startswith("./"):
+                            norm_path = norm_path[2:]
+                        normalized_files[norm_path] = hash_val
+                    return normalized_files
+            except Exception as e:
+                print(f"Error loading index: {e}")
         return {}
 
     def execute(self):
@@ -55,49 +81,69 @@ class StatusCommand(Command):
             print("Error: Gitter repository not initialized. Run 'gitter init'.")
             return
 
+        # Load all file hashes with consistent path formatting
         last_commit_hashes = self.load_last_commit_hashes()
         index_hashes = self.load_index_hashes()
-        current_hashes = self.get_current_file_hashes(self.ignore_patterns)
+        current_hashes = self.get_current_file_hashes()
+
+        # Calculate file statuses
         staged_files = []
         unstaged_files = []
         untracked_files = []
 
-        all_files = set()
-        for root, _, files in os.walk(os.getcwd()):
-            for file in files:
-                file_path = os.path.join(root, file)
-                if not should_ignore(file_path, self.ignore_patterns):
-                    all_files.add(file_path)
+        # Check all files from all sources
+        all_files = set(current_hashes.keys()) | set(index_hashes.keys()) | set(last_commit_hashes.keys())
 
-        for file in all_files:
-            if ".gitter" in file:
-                continue  # Ignore internal files
-            if file in index_hashes:
-                if (
-                    file not in last_commit_hashes
-                    or index_hashes[file] != last_commit_hashes[file]
-                ):
+        for file in sorted(all_files):
+            if should_ignore(file, self.ignore_patterns):
+                continue
+
+            # Check file status across all locations
+            in_commit = file in last_commit_hashes
+            in_index = file in index_hashes
+            in_working = file in current_hashes
+
+            # File is in index (staged)
+            if in_index:
+                if not in_commit or index_hashes[file] != last_commit_hashes.get(file, ""):
                     staged_files.append(file)
-            elif file in last_commit_hashes:
-                if last_commit_hashes[file] != current_hashes.get(file, None):
-                    unstaged_files.append(file)
-            else:
+
+            # File is in last commit and working directory (potential unstaged changes)
+            if in_commit and in_working:
+                if current_hashes[file] != last_commit_hashes[file]:
+                    if not in_index or current_hashes[file] != index_hashes.get(file, ""):
+                        unstaged_files.append(file)
+
+            # File is only in working directory (untracked)
+            if in_working and not in_commit and not in_index:
                 untracked_files.append(file)
 
+            # File is in commit but not in working directory (deleted)
+            if in_commit and not in_working and not in_index:
+                unstaged_files.append(file + " (deleted)")
+
+        # Display results
         if staged_files:
             print("Changes to be committed:")
             for file in staged_files:
                 print(f"    modified: {file}")
+            print()
 
         if unstaged_files:
             print("Changes not staged for commit:")
             for file in unstaged_files:
-                print(f"    modified: {file}")
+                if " (deleted)" in file:
+                    base_name = file.replace(" (deleted)", "")
+                    print(f"    deleted:  {base_name}")
+                else:
+                    print(f"    modified: {file}")
+            print()
 
         if untracked_files:
             print("Untracked files:")
             for file in untracked_files:
                 print(f"    {file}")
+            print()
 
         if not (staged_files or unstaged_files or untracked_files):
             print("No changes detected.")
