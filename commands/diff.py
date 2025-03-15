@@ -91,7 +91,6 @@ class DiffCommand(Command):
 
         committed_hashes = self.load_commit_hashes()  # Last committed state
         index_hashes = self.load_index()  # Staged files
-        modified_files = []
         changes_found = False
 
         if self.args:
@@ -118,32 +117,22 @@ class DiffCommand(Command):
                 # File deleted from working directory
                 if not current_hash and os.path.exists(file_path) is False:
                     old_content = read_committed_file(committed_hash)
-                    print(f"\ndiff --git a/{file_path} b/{file_path}")
-                    print(f"--- a/{file_path}")
-                    print(f"+++ /dev/null")
-                    for line in old_content:
-                        if isinstance(line, str) and line.strip():
-                            print(f"-{line.rstrip()}")
-                    changes_found = True
+                    # Use difflib for deleted files too
+                    if self.show_diff(file_path, old_content, []):
+                        changes_found = True
 
                 # File modified
                 elif current_hash and current_hash != committed_hash:
                     old_content = read_committed_file(committed_hash)
                     new_content = read_file_content(file_path)
-                    modified_files.append(file_path)
                     if self.show_diff(file_path, old_content, new_content):
                         changes_found = True
 
             # Case 2: New file not in commits
             elif os.path.exists(file_path) and file_path not in committed_hashes:
                 new_content = read_file_content(file_path)
-                if new_content:  # Only show if file has content
-                    print(f"\ndiff --git a/{file_path} b/{file_path}")
-                    print(f"--- /dev/null")
-                    print(f"+++ b/{file_path}")
-                    for line in new_content:
-                        if isinstance(line, str) and line.strip():
-                            print(f"+{line.rstrip()}")
+                # Use difflib for new files too
+                if new_content and self.show_diff(file_path, [], new_content):
                     changes_found = True
 
         if not changes_found:
