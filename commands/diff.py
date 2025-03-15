@@ -129,6 +129,13 @@ class DiffCommand(Command):
                             print(f"-{line.rstrip()}")
                     changes_found = True
 
+                # ADD THIS BLOCK: File exists and has been modified
+                elif current_hash and current_hash != committed_hash:
+                    old_content = read_committed_file(committed_hash)
+                    new_content = read_file_content(file_path)
+                    if self.show_diff(file_path, old_content, new_content):
+                        changes_found = True
+
             # Case 2: New file not in commits
             elif os.path.exists(file_path) and file_path not in committed_hashes:
                 new_content = read_file_content(file_path)
