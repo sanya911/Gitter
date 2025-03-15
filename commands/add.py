@@ -6,6 +6,11 @@ from .command import Command
 
 
 class AddCommand(Command):
+    def __init__(self, args):
+        super().__init__(args)
+        # Load ignore patterns
+        self.ignore_patterns = self.load_ignore_patterns()
+
     def execute(self):
         if not os.path.exists(".gitter"):
             print("Gitter repository not initialized.\nRun 'gitter init'.")
@@ -23,7 +28,7 @@ class AddCommand(Command):
         else:
             index = {}
 
-        valid_files, missing_files = get_files(self.args)
+        valid_files, missing_files = get_files(self.args, self.ignore_patterns)
         if not valid_files:
             print(f"Error: No valid files found to add. Named as {', '.join(self.args)}")
             return

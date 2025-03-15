@@ -7,6 +7,7 @@ from utils import (
     read_file_content,
     get_files,
     hash_file,
+    should_ignore,
 )
 from .command import Command
 
@@ -16,8 +17,10 @@ class DiffCommand(Command):
         super().__init__(args)
         # Add option to ignore whitespace changes
         self.ignore_whitespace = "-w" in self.args or "--ignore-whitespace" in self.args
-        # Filter out our custom flags so they don't interfere with file detection
+        # Filter out our custom flags
         self.args = [arg for arg in self.args if arg not in ["-w", "--ignore-whitespace"]]
+        # Load ignore patterns
+        self.ignore_patterns = self.load_ignore_patterns()
 
     def load_commit_hashes(self):
         """Loads the latest committed file hashes from .gitter/commits.json"""
@@ -92,16 +95,18 @@ class DiffCommand(Command):
         changes_found = False
 
         if self.args:
-            valid_files, _ = get_files(self.args)
+            valid_files, _ = get_files(self.args, self.ignore_patterns)
         else:
             # Get all existing files in the working directory
-            all_files, _ = get_files(["."])
+            all_files, _ = get_files(["."], self.ignore_patterns)
             # Combine with files that might be in commits but removed from filesystem
             valid_files = set(all_files) | set(committed_hashes.keys()) | set(index_hashes.keys())
+            # Filter out ignored files from valid_files
+            valid_files = [f for f in valid_files if not should_ignore(f, self.ignore_patterns)]
 
         for file_path in valid_files:
-            # Skip .gitter directory and other binary/irrelevant files
-            if ".gitter/" in file_path or file_path.endswith((".pyc", ".pyo", ".so", ".o")):
+            # Skip ignored files
+            if should_ignore(file_path, self.ignore_patterns):
                 continue
 
             current_hash = hash_file(file_path)

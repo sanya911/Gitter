@@ -4,7 +4,7 @@ import os
 import sys
 import time
 
-from utils import get_files, hash_file, read_file_content
+from utils import get_files, hash_file, read_file_content, should_ignore
 from .command import Command
 
 
@@ -14,6 +14,8 @@ class CommitCommand(Command):
         self.args = self._split_combined_flags(self.args)  # Ensure -am works
         self.auto_stage = "-a" in self.args
         self.message = self._parse_commit_message()
+        # Load ignore patterns
+        self.ignore_patterns = self.load_ignore_patterns()
 
     def _split_combined_flags(self, args):
         """Splits combined flags like '-am' into ['-a', '-m']."""
@@ -118,11 +120,12 @@ class CommitCommand(Command):
 
         if self.auto_stage:
             # Auto-stage all modified & deleted files before commit
-            all_files, _ = get_files(["."])
+            all_files, _ = get_files(["."], self.ignore_patterns)
             for file in all_files:
-                file_hash = hash_file(file)
-                if file_hash:
-                    index[file] = file_hash
+                if not should_ignore(file, self.ignore_patterns):
+                    file_hash = hash_file(file)
+                    if file_hash:
+                        index[file] = file_hash
 
         if not index:
             print("No changes to commit.")

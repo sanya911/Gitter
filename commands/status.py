@@ -1,7 +1,7 @@
 import json
 import os
 
-from utils import hash_file
+from utils import hash_file, should_ignore
 
 from .command import Command
 
@@ -9,16 +9,18 @@ from .command import Command
 class StatusCommand(Command):
     def __init__(self, args):
         super().__init__(args)
+        # Load ignore patterns
+        self.ignore_patterns = self.load_ignore_patterns()
 
     @staticmethod
-    def get_current_file_hashes():
+    def get_current_file_hashes(ignore_patterns=None):
         """Generates the latest hash values for all files in the repository."""
         file_hashes = {}
         for root, _, files in os.walk(os.getcwd()):
             for file in files:
                 file_path = os.path.join(root, file)
-                if ".gitter" in file_path:
-                    continue  # Ignore internal metadata files
+                if should_ignore(file_path, ignore_patterns):
+                    continue  # Ignore files based on patterns
                 file_hash = hash_file(file_path)
                 if file_hash:
                     file_hashes[file_path] = file_hash
@@ -55,16 +57,17 @@ class StatusCommand(Command):
 
         last_commit_hashes = self.load_last_commit_hashes()
         index_hashes = self.load_index_hashes()
-        current_hashes = self.get_current_file_hashes()
+        current_hashes = self.get_current_file_hashes(self.ignore_patterns)
         staged_files = []
         unstaged_files = []
         untracked_files = []
 
-        all_files = {
-            os.path.join(root, file)
-            for root, _, files in os.walk(os.getcwd())
-            for file in files
-        }
+        all_files = set()
+        for root, _, files in os.walk(os.getcwd()):
+            for file in files:
+                file_path = os.path.join(root, file)
+                if not should_ignore(file_path, self.ignore_patterns):
+                    all_files.add(file_path)
 
         for file in all_files:
             if ".gitter" in file:
