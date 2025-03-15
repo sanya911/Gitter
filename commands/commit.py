@@ -4,14 +4,14 @@ import os
 import sys
 import time
 
-from utils import get_files, hash_file, read_file_content, write_committed_file
+from utils import get_files, hash_file, read_file_content
 from .command import Command
 
 
 class CommitCommand(Command):
     def __init__(self, args):
         super().__init__(args)
-        self.args = self._split_combined_flags(self.args)  # NEW: Split combined flags like `-am`
+        self.args = self._split_combined_flags(self.args)  # Ensure -am works
         self.auto_stage = "-a" in self.args
         self.message = self._parse_commit_message()
 
@@ -62,7 +62,7 @@ class CommitCommand(Command):
         return []
 
     def save_commit(self, index):
-        """Saves the commit metadata and stores committed file versions."""
+        """Saves the commit metadata and stores committed file versions in a Git-like object store."""
         commits = self.load_commits()
         commit_hash = self._generate_commit_hash(index)
 
@@ -77,10 +77,25 @@ class CommitCommand(Command):
         with open(".gitter/commits.json", "w") as f:
             json.dump(commits, f, indent=4)
 
-        # Store committed file contents in .gitter/objects
-        for file_path in index.keys():
-            content = read_file_content(file_path)
-            write_committed_file(file_path, content)
+        # Store committed file contents in .gitter/objects using SHA-1 hash filenames
+        for file_path, file_hash in index.items():
+            file_content = read_file_content(file_path)
+
+            # Convert list to string before writing
+            if isinstance(file_content, list):
+                file_content = "\n".join(file_content)
+
+            self.store_object(file_hash, file_content)
+
+    def store_object(self, file_hash, content):
+        """Stores file content in a Git-like object format (.gitter/objects/<hash-prefix>/<hash>)"""
+        object_dir = f".gitter/objects/{file_hash[:2]}"  # First 2 chars as folder
+        object_path = f"{object_dir}/{file_hash[2:]}"
+
+        os.makedirs(object_dir, exist_ok=True)
+
+        with open(object_path, "w") as f:
+            f.write(content)  # Fix: Ensure content is always a string
 
     def _generate_commit_hash(self, index):
         """Generates a unique commit hash including file contents."""
@@ -115,8 +130,8 @@ class CommitCommand(Command):
 
         self.save_commit(index)
 
-        # Keep staged files in index, only remove committed ones
+        # Clear index after commit
         with open(".gitter/index.json", "w") as f:
             json.dump({}, f)
 
-        print("Committed successfully.")
+        print(f"Committed successfully with hash: {self._generate_commit_hash(index)}")
