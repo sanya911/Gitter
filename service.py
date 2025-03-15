@@ -3,6 +3,7 @@ import sys
 from core.command_factory import CommandFactory
 
 
+
 def main():
     if len(sys.argv) < 2:
         print(

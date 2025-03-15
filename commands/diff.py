@@ -2,7 +2,12 @@ import difflib
 import json
 import os
 
-from utils import read_committed_file, read_file_content, get_files, hash_file
+from utils import (
+    read_committed_file,
+    read_file_content,
+    get_files,
+    hash_file,
+)
 from .command import Command
 
 
@@ -32,27 +37,34 @@ class DiffCommand(Command):
         return {}
 
     def show_diff(self, file_path, old_content, new_content):
-        """Displays the diff output in a Git-style format"""
-        # Ensure content is string before using splitlines()
-        if isinstance(old_content, list):
-            old_content = "\n".join(old_content)
-        if isinstance(new_content, list):
-            new_content = "\n".join(new_content)
+        """Displays the diff output in a Git-style format with only relevant changes."""
+        old_lines = old_content.splitlines() if isinstance(old_content, str) else old_content
+        new_lines = new_content.splitlines() if isinstance(new_content, str) else new_content
 
-        old_lines = old_content.splitlines() if old_content else []
-        new_lines = new_content.splitlines() if new_content else []
-
-        diff = difflib.unified_diff(
+        diff = list(difflib.unified_diff(
             old_lines,
             new_lines,
             fromfile=f"a/{file_path}",
             tofile=f"b/{file_path}",
+            n=2,
             lineterm="",
-        )
-        diff_output = "\n".join(diff)
+        ))
 
-        if diff_output:
-            print(diff_output)
+        filtered_diff = []
+        show_context = False
+
+        for line in diff:
+            if line.startswith("@@"):
+                show_context = True
+                filtered_diff.append(line)
+            elif show_context:
+                if line.startswith("-") or line.startswith("+"):
+                    filtered_diff.append(line)
+                elif filtered_diff and not line.strip():
+                    filtered_diff.append(line)
+
+        if filtered_diff:
+            print("\n".join(filtered_diff))
 
     def execute(self):
         if not os.path.exists(".gitter"):
@@ -63,11 +75,9 @@ class DiffCommand(Command):
         index_hashes = self.load_index()  # Staged files
         modified_files = []
 
-        # If specific files or directories are given, filter accordingly
         if self.args:
             valid_files, _ = get_files(self.args)
         else:
-            # Get only modified files instead of all files
             valid_files = set(committed_hashes.keys()) | set(index_hashes.keys())
 
         for file_path in valid_files:
@@ -76,21 +86,17 @@ class DiffCommand(Command):
             if file_path in committed_hashes:
                 committed_hash = committed_hashes[file_path]
                 if current_hash and current_hash != committed_hash:
-                    old_content = read_committed_file(file_path)
-                    new_content = read_file_content(file_path)
+                    old_content = read_committed_file(committed_hash)  # Read committed version
+                    new_content = read_file_content(file_path)  # Read current version
                     modified_files.append(file_path)
                     self.show_diff(file_path, old_content, new_content)
 
             elif file_path not in committed_hashes and file_path not in index_hashes:
-                # New untracked file (show as added content)
                 new_content = read_file_content(file_path)
-                if isinstance(new_content, list):
-                    new_content = "\n".join(new_content)
-
                 print(f"--- a/{file_path}")
                 print(f"+++ b/{file_path}")
-                for line in new_content.splitlines():
-                    print(f"+{line}")  # New file, so everything is an addition
+                for line in new_content:
+                    print(f"+{line.strip()}")  # New file, so everything is an addition
 
         if not modified_files:
-            print("No differences found.")
+            print("No differences found.khjgf")

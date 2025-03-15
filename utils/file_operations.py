@@ -56,10 +56,15 @@ def read_file_content(file_path):
         return []
 
 
-def read_committed_file(file_path):
-    """Reads the committed version of a file from the .gitter/objects directory."""
-    committed_path = f".gitter/objects/{file_path.replace('/', '_')}"
-    return read_file_content(committed_path)
+def read_committed_file(file_hash):
+    """Reads the committed version of a file from the .gitter/objects directory using its hash."""
+    object_path = f".gitter/objects/{file_hash[:2]}/{file_hash[2:]}"
+
+    if os.path.exists(object_path):
+        with open(object_path, "r", encoding="utf-8", errors="ignore") as f:
+            return f.readlines()  # Return as list of lines for diff processing
+    return []
+
 
 
 def write_committed_file(file_path, content):
