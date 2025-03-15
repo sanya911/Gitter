@@ -14,6 +14,10 @@ from .command import Command
 class DiffCommand(Command):
     def __init__(self, args):
         super().__init__(args)
+        # Add option to ignore whitespace changes
+        self.ignore_whitespace = "-w" in self.args or "--ignore-whitespace" in self.args
+        # Filter out our custom flags so they don't interfere with file detection
+        self.args = [arg for arg in self.args if arg not in ["-w", "--ignore-whitespace"]]
 
     def load_commit_hashes(self):
         """Loads the latest committed file hashes from .gitter/commits.json"""
@@ -37,34 +41,45 @@ class DiffCommand(Command):
         return {}
 
     def show_diff(self, file_path, old_content, new_content):
-        """Displays the diff output in a Git-style format with only relevant changes."""
-        old_lines = old_content.splitlines() if isinstance(old_content, str) else old_content
-        new_lines = new_content.splitlines() if isinstance(new_content, str) else new_content
+        """Displays the diff output in a Git-style format."""
+        # Make sure both old_content and new_content are lists of strings without line endings
+        if isinstance(old_content, str):
+            old_lines = old_content.splitlines()
+        else:
+            old_lines = [line.rstrip('\n') if isinstance(line, str) else str(line).rstrip('\n') for line in old_content]
 
+        if isinstance(new_content, str):
+            new_lines = new_content.splitlines()
+        else:
+            new_lines = [line.rstrip('\n') if isinstance(line, str) else str(line).rstrip('\n') for line in new_content]
+
+        # If ignoring whitespace, normalize whitespace in both versions
+        if self.ignore_whitespace:
+            old_lines = [' '.join(line.split()) for line in old_lines]
+            new_lines = [' '.join(line.split()) for line in new_lines]
+
+            # Also remove empty lines if ignoring whitespace
+            old_lines = [line for line in old_lines if line.strip()]
+            new_lines = [line for line in new_lines if line.strip()]
+
+        # Generate unified diff
         diff = list(difflib.unified_diff(
             old_lines,
             new_lines,
             fromfile=f"a/{file_path}",
             tofile=f"b/{file_path}",
-            n=2,
-            lineterm="",
+            n=3,  # Show 3 lines of context
+            lineterm=""
         ))
 
-        filtered_diff = []
-        show_context = False
-
-        for line in diff:
-            if line.startswith("@@"):
-                show_context = True
-                filtered_diff.append(line)
-            elif show_context:
-                if line.startswith("-") or line.startswith("+"):
-                    filtered_diff.append(line)
-                elif filtered_diff and not line.strip():
-                    filtered_diff.append(line)
-
-        if filtered_diff:
-            print("\n".join(filtered_diff))
+        # Only show diff if there are changes
+        if diff:
+            print(f"\ndiff --git a/{file_path} b/{file_path}")
+            # Print each line of the diff
+            for line in diff:
+                print(line)
+            return True
+        return False
 
     def execute(self):
         if not os.path.exists(".gitter"):
@@ -74,29 +89,57 @@ class DiffCommand(Command):
         committed_hashes = self.load_commit_hashes()  # Last committed state
         index_hashes = self.load_index()  # Staged files
         modified_files = []
+        changes_found = False
 
         if self.args:
             valid_files, _ = get_files(self.args)
         else:
-            valid_files = set(committed_hashes.keys()) | set(index_hashes.keys())
+            # Get all existing files in the working directory
+            all_files, _ = get_files(["."])
+            # Combine with files that might be in commits but removed from filesystem
+            valid_files = set(all_files) | set(committed_hashes.keys()) | set(index_hashes.keys())
 
         for file_path in valid_files:
+            # Skip .gitter directory and other binary/irrelevant files
+            if ".gitter/" in file_path or file_path.endswith((".pyc", ".pyo", ".so", ".o")):
+                continue
+
             current_hash = hash_file(file_path)
 
+            # Case 1: File exists in commits, check for modifications
             if file_path in committed_hashes:
                 committed_hash = committed_hashes[file_path]
-                if current_hash and current_hash != committed_hash:
-                    old_content = read_committed_file(committed_hash)  # Read committed version
-                    new_content = read_file_content(file_path)  # Read current version
+
+                # File deleted from working directory
+                if not current_hash and os.path.exists(file_path) is False:
+                    old_content = read_committed_file(committed_hash)
+                    print(f"\ndiff --git a/{file_path} b/{file_path}")
+                    print(f"--- a/{file_path}")
+                    print(f"+++ /dev/null")
+                    for line in old_content:
+                        if isinstance(line, str) and line.strip():
+                            print(f"-{line.rstrip()}")
+                    changes_found = True
+
+                # File modified
+                elif current_hash and current_hash != committed_hash:
+                    old_content = read_committed_file(committed_hash)
+                    new_content = read_file_content(file_path)
                     modified_files.append(file_path)
-                    self.show_diff(file_path, old_content, new_content)
+                    if self.show_diff(file_path, old_content, new_content):
+                        changes_found = True
 
-            elif file_path not in committed_hashes and file_path not in index_hashes:
+            # Case 2: New file not in commits
+            elif os.path.exists(file_path) and file_path not in committed_hashes:
                 new_content = read_file_content(file_path)
-                print(f"--- a/{file_path}")
-                print(f"+++ b/{file_path}")
-                for line in new_content:
-                    print(f"+{line.strip()}")  # New file, so everything is an addition
+                if new_content:  # Only show if file has content
+                    print(f"\ndiff --git a/{file_path} b/{file_path}")
+                    print(f"--- /dev/null")
+                    print(f"+++ b/{file_path}")
+                    for line in new_content:
+                        if isinstance(line, str) and line.strip():
+                            print(f"+{line.rstrip()}")
+                    changes_found = True
 
-        if not modified_files:
-            print("No differences found.khjgf")
+        if not changes_found:
+            print("No differences found.")
