@@ -65,6 +65,10 @@ class DiffCommand(Command):
             old_lines = [line for line in old_lines if line.strip()]
             new_lines = [line for line in new_lines if line.strip()]
 
+        # Check if files are identical
+        if old_lines == new_lines:
+            return False
+
         # Generate unified diff
         diff = list(difflib.unified_diff(
             old_lines,
@@ -109,38 +113,30 @@ class DiffCommand(Command):
             if should_ignore(file_path, self.ignore_patterns):
                 continue
 
+            # Skip files that are not in the commit history
+            if file_path not in committed_hashes:
+                continue
+
             current_hash = hash_file(file_path)
+            committed_hash = committed_hashes[file_path]
 
-            if file_path in committed_hashes:
-                committed_hash = committed_hashes[file_path]
+            # File deleted from working directory
+            if not current_hash and os.path.exists(file_path) is False:
+                old_content = read_committed_file(committed_hash)
+                print(f"diff --git a/{file_path} b/{file_path}")
+                print(f"--- a/{file_path}")
+                print(f"+++ /dev/null")
+                # Only print non-empty lines
+                for line in old_content:
+                    if isinstance(line, str) and line.strip():
+                        print(f"-{line.rstrip()}")
+                changes_found = True
 
-                # File deleted from working directory
-                if not current_hash and os.path.exists(file_path) is False:
-                    old_content = read_committed_file(committed_hash)
-                    # Instead of this:
-                    # print(f"\ndiff --git a/{file_path} b/{file_path}")
-                    # Do this:
-                    print(f"diff --git a/{file_path} b/{file_path}")
-                    print(f"--- a/{file_path}")
-                    print(f"+++ /dev/null")
-                    # Only print non-empty lines
-                    for line in old_content:
-                        if isinstance(line, str) and line.strip():
-                            print(f"-{line.rstrip()}")
-                    changes_found = True
-
-                # ADD THIS BLOCK: File exists and has been modified
-                elif current_hash and current_hash != committed_hash:
-                    old_content = read_committed_file(committed_hash)
-                    new_content = read_file_content(file_path)
-                    if self.show_diff(file_path, old_content, new_content):
-                        changes_found = True
-
-            # Case 2: New file not in commits
-            elif os.path.exists(file_path) and file_path not in committed_hashes:
+            # File exists and has been modified
+            elif current_hash and current_hash != committed_hash:
+                old_content = read_committed_file(committed_hash)
                 new_content = read_file_content(file_path)
-                # Use difflib for new files too
-                if new_content and self.show_diff(file_path, [], new_content):
+                if self.show_diff(file_path, old_content, new_content):
                     changes_found = True
 
         if not changes_found:

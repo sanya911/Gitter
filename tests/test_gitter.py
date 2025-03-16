@@ -128,9 +128,9 @@ class TestAddCommand(GitterTestCase):
         # Check that our test files are in the index
         with open(".gitter/index.json", "r") as f:
             index = json.load(f)
-            self.assertIn("test_file1.txt", index)
-            self.assertIn("test_file2.txt", index)
-            self.assertIn("subdir/test_file3.txt", index)
+            self.assertIn("./test_file1.txt", index)
+            self.assertIn("./test_file2.txt", index)
+            self.assertIn("./subdir/test_file3.txt", index)
 
     def test_add_nonexistent_file(self):
         """Test adding a file that doesn't exist"""
