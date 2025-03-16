@@ -76,8 +76,14 @@ class StatusCommand(Command):
             elif commit_hashes[file] != hash_val:
                 staged_modified.append(file)
 
-        # Find untracked files (not in index)
-        untracked = [f for f in all_files if f not in index]
+        # Check for files that were committed but not in working directory (deleted)
+        for file in commit_hashes:
+            if file not in current_hashes and file not in index:
+                # File was in last commit but now deleted and not staged
+                unstaged_deleted.append(file)
+
+        # Find untracked files (not in index and not in last commit)
+        untracked = [f for f in all_files if f not in index and f not in commit_hashes]
 
         # Display changes to be committed (staged)
         if staged_new or staged_modified:
