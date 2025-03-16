@@ -21,6 +21,11 @@ class LogCommand(Command):
         try:
             with open(commits_file, "r") as f:
                 commits = json.load(f)
+
+            if not commits:
+                print("No commits found.")
+                return
+
         except (FileNotFoundError, json.JSONDecodeError):
             print("Error: Commit log is corrupted.")
             return

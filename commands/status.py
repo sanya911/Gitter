@@ -7,12 +7,7 @@ from utils import hash_file, should_ignore
 from .command import Command
 
 
-
-
-
-
 class StatusCommand(Command):
-    # jhgv
     def __init__(self, args):
         super().__init__(args)
         # Load ignore patterns
