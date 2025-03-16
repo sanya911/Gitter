@@ -1,4 +1,3 @@
-import sys
 from .command import Command
 
 
@@ -79,4 +78,6 @@ class HelpCommand(Command):
         elif self.args[0] in self.COMMAND_DETAILS:
             print(self.COMMAND_DETAILS[self.args[0]])
         else:
-            print(f"Unknown command '{self.args[0]}'. Run 'gitter help' for a list of commands.")
+            print(
+                f"Unknown command '{self.args[0]}'. Run 'gitter help' for a list of commands."
+            )

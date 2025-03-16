@@ -2,6 +2,7 @@ import json
 import os
 
 from utils import get_files, hash_file, should_ignore
+
 from .command import Command
 
 
@@ -111,6 +112,11 @@ class StatusCommand(Command):
             print()
 
         # If no changes at all
-        if not (staged_new or staged_modified or unstaged_modified or
-                unstaged_deleted or untracked):
+        if not (
+            staged_new
+            or staged_modified
+            or unstaged_modified
+            or unstaged_deleted
+            or untracked
+        ):
             print("No changes (working directory clean)")

@@ -1,11 +1,10 @@
-import os
 import json
-import tempfile
-import unittest
+import os
 import shutil
 import subprocess
 import sys
-from pathlib import Path
+import tempfile
+import unittest
 
 
 class GitterTestCase(unittest.TestCase):
@@ -49,7 +48,9 @@ class GitterTestCase(unittest.TestCase):
         full_command = f"{sys.executable} {service_path} {command}"
 
         # Run command and capture both stdout and stderr
-        result = subprocess.run(full_command, shell=True, capture_output=True, text=True, cwd=self.test_dir)
+        result = subprocess.run(
+            full_command, shell=True, capture_output=True, text=True, cwd=self.test_dir
+        )
 
         # For debugging, print stdout and stderr
         if result.stdout:

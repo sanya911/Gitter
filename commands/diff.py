@@ -2,13 +2,9 @@ import difflib
 import json
 import os
 
-from utils import (
-    read_committed_file,
-    read_file_content,
-    get_files,
-    hash_file,
-    should_ignore,
-)
+from utils import (get_files, hash_file, read_committed_file,
+                   read_file_content, should_ignore)
+
 from .command import Command
 
 
@@ -18,7 +14,9 @@ class DiffCommand(Command):
         # Add option to ignore whitespace changes
         self.ignore_whitespace = "-w" in self.args or "--ignore-whitespace" in self.args
         # Filter out our custom flags
-        self.args = [arg for arg in self.args if arg not in ["-w", "--ignore-whitespace"]]
+        self.args = [
+            arg for arg in self.args if arg not in ["-w", "--ignore-whitespace"]
+        ]
         # Load ignore patterns
         self.ignore_patterns = self.load_ignore_patterns()
 
@@ -49,17 +47,23 @@ class DiffCommand(Command):
         if isinstance(old_content, str):
             old_lines = old_content.splitlines()
         else:
-            old_lines = [line.rstrip('\n') if isinstance(line, str) else str(line).rstrip('\n') for line in old_content]
+            old_lines = [
+                line.rstrip("\n") if isinstance(line, str) else str(line).rstrip("\n")
+                for line in old_content
+            ]
 
         if isinstance(new_content, str):
             new_lines = new_content.splitlines()
         else:
-            new_lines = [line.rstrip('\n') if isinstance(line, str) else str(line).rstrip('\n') for line in new_content]
+            new_lines = [
+                line.rstrip("\n") if isinstance(line, str) else str(line).rstrip("\n")
+                for line in new_content
+            ]
 
         # If ignoring whitespace, normalize whitespace in both versions
         if self.ignore_whitespace:
-            old_lines = [' '.join(line.split()) for line in old_lines]
-            new_lines = [' '.join(line.split()) for line in new_lines]
+            old_lines = [" ".join(line.split()) for line in old_lines]
+            new_lines = [" ".join(line.split()) for line in new_lines]
 
             # Also remove empty lines if ignoring whitespace
             old_lines = [line for line in old_lines if line.strip()]
@@ -70,21 +74,28 @@ class DiffCommand(Command):
             return False
 
         # Generate unified diff
-        diff = list(difflib.unified_diff(
-            old_lines,
-            new_lines,
-            fromfile=f"a/{file_path}",
-            tofile=f"b/{file_path}",
-            n=3,  # Show 3 lines of context
-            lineterm=""
-        ))
+        diff = list(
+            difflib.unified_diff(
+                old_lines,
+                new_lines,
+                fromfile=f"a/{file_path}",
+                tofile=f"b/{file_path}",
+                n=3,  # Show 3 lines of context
+                lineterm="",
+            )
+        )
 
         # Only show diff if there are changes
         if diff:
             print(f"diff --git a/{file_path} b/{file_path}")
             # Print only the modified chunks, skipping unnecessary empty lines
             for line in diff:
-                if line.strip() or line.startswith('+') or line.startswith('-') or line.startswith('@'):
+                if (
+                    line.strip()
+                    or line.startswith("+")
+                    or line.startswith("-")
+                    or line.startswith("@")
+                ):
                     print(line)
             return True
         return False
@@ -104,9 +115,13 @@ class DiffCommand(Command):
             # Get all existing files in the working directory
             all_files, _ = get_files(["."], self.ignore_patterns)
             # Combine with files that might be in commits but removed from filesystem
-            valid_files = set(all_files) | set(committed_hashes.keys()) | set(index_hashes.keys())
+            valid_files = (
+                set(all_files) | set(committed_hashes.keys()) | set(index_hashes.keys())
+            )
             # Filter out ignored files from valid_files
-            valid_files = [f for f in valid_files if not should_ignore(f, self.ignore_patterns)]
+            valid_files = [
+                f for f in valid_files if not should_ignore(f, self.ignore_patterns)
+            ]
 
         for file_path in valid_files:
             # Skip ignored files

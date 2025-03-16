@@ -1,7 +1,7 @@
+import fnmatch
 import glob
 import hashlib
 import os
-import fnmatch
 
 
 def get_files(paths, ignore_patterns=None):
@@ -16,7 +16,7 @@ def get_files(paths, ignore_patterns=None):
             # If it's a directory, recursively add all files
             for root, dirs, files in os.walk(path):
                 # Skip .git and .gitter directories entirely
-                dirs[:] = [d for d in dirs if d != '.git' and d != '.gitter']
+                dirs[:] = [d for d in dirs if d != ".git" and d != ".gitter"]
 
                 for file in files:
                     file_path = os.path.join(root, file)
@@ -31,7 +31,9 @@ def get_files(paths, ignore_patterns=None):
             glob_files = glob.glob(path)
             if glob_files:
                 for file in glob_files:
-                    if os.path.isfile(file) and not should_ignore(file, ignore_patterns):
+                    if os.path.isfile(file) and not should_ignore(
+                        file, ignore_patterns
+                    ):
                         valid_files.append(file)
             else:
                 missing_files.append(path)
@@ -74,7 +76,6 @@ def read_committed_file(file_hash):
     return []
 
 
-
 def write_committed_file(file_path, content):
     """Stores the committed version of a file in .gitter/objects."""
     os.makedirs(".gitter/objects", exist_ok=True)
@@ -111,11 +112,21 @@ def should_ignore(file_path, ignore_patterns=None):
 
     # Default ignore patterns
     default_patterns = [
-        "*.pyc", "*.pyo", "*.pyd",
-        "__pycache__/*", "__pycache__",
-        "*.so", "*.o", "*.a", "*.dll",
-        ".git/*", ".git/**", ".git",
-        ".gitter/*", ".gitter/**", ".gitter"
+        "*.pyc",
+        "*.pyo",
+        "*.pyd",
+        "__pycache__/*",
+        "__pycache__",
+        "*.so",
+        "*.o",
+        "*.a",
+        "*.dll",
+        ".git/*",
+        ".git/**",
+        ".git",
+        ".gitter/*",
+        ".gitter/**",
+        ".gitter",
     ]
 
     patterns = ignore_patterns or default_patterns

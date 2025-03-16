@@ -5,6 +5,7 @@ import sys
 import time
 
 from utils import get_files, hash_file, read_file_content, should_ignore
+
 from .command import Command
 
 

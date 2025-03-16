@@ -1,5 +1,5 @@
-from abc import ABC, abstractmethod
 import os
+from abc import ABC, abstractmethod
 
 
 class Command(ABC):
@@ -13,17 +13,31 @@ class Command(ABC):
     def load_ignore_patterns(self):
         """Load ignore patterns from .gitterignore or use defaults."""
         default_patterns = [
-            "*.pyc", "*.pyo", "*.pyd",
-            "__pycache__/*", "__pycache__/**",
-            "*.so", "*.o", "*.a", "*.dll",
-            ".git/*", ".git/**", ".git",  # Ignore .git directory completely
-            ".gitter/*", ".gitter/**", ".gitter"  # Ignore .gitter directory completely
+            "*.pyc",
+            "*.pyo",
+            "*.pyd",
+            "__pycache__/*",
+            "__pycache__/**",
+            "*.so",
+            "*.o",
+            "*.a",
+            "*.dll",
+            ".git/*",
+            ".git/**",
+            ".git",  # Ignore .git directory completely
+            ".gitter/*",
+            ".gitter/**",
+            ".gitter",  # Ignore .gitter directory completely
         ]
 
         ignore_file = ".gitterignore"
         if os.path.exists(ignore_file):
             with open(ignore_file, "r") as f:
-                custom_patterns = [line.strip() for line in f if line.strip() and not line.startswith("#")]
+                custom_patterns = [
+                    line.strip()
+                    for line in f
+                    if line.strip() and not line.startswith("#")
+                ]
             return custom_patterns + default_patterns
 
         return default_patterns
